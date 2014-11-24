@@ -88,7 +88,7 @@ public class Bench {
 	}
 	
 	public static void main(String[] args) {
-		Bench Test = new Bench4();
+		Bench Test = new Bench5();
 		Test.DoBenchmark(10);
 		System.out.printf("Ich habe fertig!");
 	}

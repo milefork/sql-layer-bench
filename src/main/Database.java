@@ -24,27 +24,31 @@ public class Database {
 	private int statement_counter;
 	
 	private void addConnection() throws SQLException {
-		Connection tmp;
-		if((connection_counter%2)==0){
-			tmp = DriverManager.getConnection("jdbc:fdbsql://serv-pc:15433/benchmark");
+		if(connection_counter<connections) {
+			Connection tmp;
+			if((connection_counter%2)==0){
+				tmp = DriverManager.getConnection("jdbc:fdbsql://serv-pc:15433/benchmark");
+			}
+			else{
+				tmp = DriverManager.getConnection("jdbc:fdbsql://serv-pc:15432/benchmark");
+			}
+			tmp.setAutoCommit(false);
+			conn.add(tmp);
+			connection_counter++;
 		}
-		else{
-			tmp = DriverManager.getConnection("jdbc:fdbsql://serv-pc:15432/benchmark");
-		}
-		tmp.setAutoCommit(false);
-		conn.add(tmp);
-		connection_counter++;
 	}
 	private void addConnection(int id) throws SQLException {
-		Connection tmp;
-		if((connection_counter%2)==0){
-			tmp = DriverManager.getConnection("jdbc:fdbsql://serv-pc:15433/benchmark");
+		if(connection_counter<connections) {
+			Connection tmp;
+			if((connection_counter%2)==0){
+				tmp = DriverManager.getConnection("jdbc:fdbsql://serv-pc:15433/benchmark");
+			}
+			else{
+				tmp = DriverManager.getConnection("jdbc:fdbsql://serv-pc:15432/benchmark");
+			}
+			tmp.setAutoCommit(false);
+			conn.set(id, tmp);
 		}
-		else{
-			tmp = DriverManager.getConnection("jdbc:fdbsql://serv-pc:15432/benchmark");
-		}
-		tmp.setAutoCommit(false);
-		conn.set(id, tmp);
 	}
 	
 	private void connect() throws SQLException {
@@ -84,19 +88,29 @@ public class Database {
 		return Database.instance;
 	}
 	
+	public final void releaseConnection(Connection c) {
+		try {
+			c.commit();
+			c.close();
+			conn.remove(c);
+			connection_counter--;
+		}
+		catch (Exception ex) { ex.printStackTrace();}
+	}
+	
 	public final Connection getConnection() throws SQLException{
 		round_connection++;
 		if(round_connection==connections) {
 			round_connection=0;
 		}
-		if(connection_counter!=connections) {
+		if(connection_counter<connections) {
 			addConnection();
 			return getConnection();
 		}
 		
 		if(conn.get(round_connection).isClosed()){
 			addConnection(round_connection);
-			return getConnection();
+			return conn.get(round_connection);
 		}
 		return conn.get(round_connection);
 	}

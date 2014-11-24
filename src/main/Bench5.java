@@ -1,13 +1,13 @@
 package main;
 
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Stack;
 import java.util.concurrent.Semaphore;
 
-import sun.misc.Lock;
 
 public class Bench5 extends Bench implements Runnable{
 
@@ -15,7 +15,6 @@ public class Bench5 extends Bench implements Runnable{
 	int bulkSize = 10;
  	int n = 0;
  	String accInsert = "";
- 	private Lock lock = new Lock();
 	
  	
 	Semaphore connLock = new Semaphore(connections, true);
@@ -31,37 +30,14 @@ public class Bench5 extends Bench implements Runnable{
 			e.printStackTrace();
 		}
 	}
-	Connection acquireConnection(){
-		Connection conn=null;
-		try{
-			lock.lock();
-			connLock.acquire();
-			conn=stack.pop();
-			lock.unlock();
-		}catch(Exception e){
-			e.printStackTrace();
-		}
-		return conn;
-		
-		
-	}
-	void releaseConnection(Connection value){
-		try{
-		lock.lock();
-		stack.push(value);
-		connLock.release();
-		lock.unlock();
-		}
-		catch(Exception e){
-			e.printStackTrace();
-		}
-	}
 	
 	public void run(){
 		System.out.printf(".");
 		
 		try{
-			Connection conn=Database.getInstance().getConnection();
+			//TODO Even this won't work ... :(
+			Connection conn=DriverManager.getConnection("jdbc:fdbsql://serv-pc:15433/benchmark");
+			conn.setAutoCommit(false);
 			PreparedStatement Pre = conn.prepareStatement(accInsert);
 			Pre.executeUpdate();
 			conn.commit();
@@ -93,8 +69,8 @@ public class Bench5 extends Bench implements Runnable{
 		String ADDRESS = "Westfälische Hochschule Abteilung Bocholt Münsterstr 265 D-46397 Bocholt";
 		String insertTableSQL = 
 				"INSERT INTO branches (branchname, balance, address) VALUES  ('"+BRANCHNAME+"',0,'"+ADDRESS+"')";
-		Connection conn=acquireConnection();
 		try{
+			Connection conn=Database.getInstance().getConnection();
 			PreparedStatement Pre = conn.prepareStatement(insertTableSQL);
 			for(int index=0; n != index; ++index) {
 				Pre.addBatch();
@@ -102,11 +78,11 @@ public class Bench5 extends Bench implements Runnable{
 			Pre.executeBatch();
 			conn.commit();
 			Pre.close();
+			Database.getInstance().releaseConnection(conn);
 		}
 		catch(Exception e){
 			e.printStackTrace();
 		}
-		releaseConnection(conn);
 	}
 	
 	void InsertAccounts(){
@@ -140,17 +116,17 @@ public class Bench5 extends Bench implements Runnable{
 	
 	void InsertTeller(){
 		int ende = n*10;
-		Connection conn=acquireConnection();
 		try{
+			Connection conn=Database.getInstance().getConnection();
 			PreparedStatement Pre = conn.prepareStatement(bulkInsert("INSERT INTO tellers (tellername, balance, branchid, address) VALUES ", ende));
 			Pre.executeUpdate();
 			conn.commit();
 			Pre.close();
+			Database.getInstance().releaseConnection(conn);
 		}
 		catch(Exception e){
 			e.printStackTrace();
 		}
-		releaseConnection(conn);
 	}
 	
 	void DoBenchmark(int N){
